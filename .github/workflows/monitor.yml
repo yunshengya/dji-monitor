@@ -20,13 +20,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
 
       - name: Install dependencies
         run: npm install
@@ -53,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
-            --title "DJI 换购机型列表发生变化" \
+            --title "DJI 换购机型列表发生变化｜${{ steps.monitor.outputs.model_count }} 个机型" \
             --body-file change-summary.md
 
       - name: Save changed snapshot
@@ -67,7 +66,7 @@ jobs:
 
       - name: Upload debug screenshot
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dji-monitor-debug-${{ github.run_number }}
           path: debug/
