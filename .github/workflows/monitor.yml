@@ -1,0 +1,75 @@
+name: Monitor DJI recycle models
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: dji-recycle-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Read DJI model list
+        id: monitor
+        run: npm run monitor
+
+      - name: Save initial baseline
+        if: steps.monitor.outputs.baseline_created == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/dji-models.json
+          git commit -m "chore: initialize DJI model snapshot"
+          git push
+
+      - name: Create GitHub Issue when changed
+        if: steps.monitor.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "DJI 换购机型列表发生变化" \
+            --body-file change-summary.md
+
+      - name: Save changed snapshot
+        if: steps.monitor.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/dji-models.json
+          git commit -m "chore: update DJI model snapshot"
+          git push
+
+      - name: Upload debug screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dji-monitor-debug-${{ github.run_number }}
+          path: debug/
+          retention-days: 7
+          if-no-files-found: ignore
